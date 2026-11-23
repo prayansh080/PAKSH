@@ -1,6 +1,9 @@
 /**
  * Layer 1: Browser-side explainable rules engine.
  * Returns a rules report with signals, weights, and a capped score.
+ *
+ * Deterministic: same input always produces same output.
+ * No randomness, no AI dependency, no external state.
  */
 
 // Safe-context signals. If present, weak scam signals are suppressed.
@@ -13,7 +16,8 @@ const SAFE_SIGNALS = [
   '.edu.in', '.ac.in', '.gov.in', '.nic.in'
 ];
 
-// Strong scam signals that always fire even inside a safe context
+// Strong scam signals that always fire even inside a safe context.
+// These are used only for suppression logic, not for additional scoring.
 const STRONG_SIGNALS = ['otp', 'password', 'pin', 'cvv', 'payment', 'fee', 'deposit'];
 
 const URL_SHORTENERS = [
@@ -77,9 +81,34 @@ function containsAny(text, keywords) {
 }
 
 function findURLs(text) {
+  // Supports subdomains (e.g. college.edu.in/fees) by allowing repeated .label segments.
   const urlRegex =
-    /https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+\.[a-zA-Z]{2,}\/[^\s]*/g;
+    /https?:\/\/[^\s]+|www\.[^\s]+|[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}\/[^\s]*/g;
   return text.match(urlRegex) || [];
+}
+
+/**
+ * Maps a numeric score to a three-tier verdict.
+ * Thresholds are evidence-based:
+ *   HIGH RISK   >= 30  (strong evidence: credential theft, upfront payment, multiple signals)
+ *   SUSPICIOUS  >= 20  (moderate evidence: urgency, impersonation, suspicious URL)
+ *   LOW RISK    < 20   (weak or no evidence — never a guarantee of safety)
+ *
+ * Urgency alone (+10) stays LOW RISK — it never auto-escalates to HIGH RISK.
+ * Payment alone (+25) stays SUSPICIOUS — not automatically a scam.
+ * OTP alone (+30) reaches HIGH RISK — strong credential theft stays important.
+ */
+function scoreToVerdict(score) {
+  if (score >= 30) return 'HIGH RISK';
+  if (score >= 20) return 'SUSPICIOUS';
+  return 'LOW RISK';
+}
+
+function scoreToSeverity(score) {
+  if (score >= 30) return 'critical';
+  if (score >= 20) return 'high';
+  if (score > 0) return 'medium';
+  return 'safe';
 }
 
 export function analyzeRules(message) {
@@ -89,9 +118,10 @@ export function analyzeRules(message) {
   let score = 0;
 
   const hasSafeSignal = containsAny(text, SAFE_SIGNALS);
+  const seenSignalIds = new Set(); // prevents duplicate signal counting
 
-  // 1. OTP / password / PIN / CVV request — +30
-  if (containsAny(text, OTP_KEYWORDS)) {
+  // 1. OTP / password / PIN / CVV request — +30 (always fires, even in safe context)
+  if (containsAny(text, OTP_KEYWORDS) && !seenSignalIds.has('otp-request')) {
     signals.push({
       id: 'otp-request',
       label: 'OTP / password / PIN / CVV request',
@@ -99,22 +129,29 @@ export function analyzeRules(message) {
       weight: 30,
       evidence: 'Message asks for OTP, password, PIN, CVV, Aadhaar, PAN, or personal ID details'
     });
+    seenSignalIds.add('otp-request');
     score += 30;
   }
 
   // 2. Upfront payment — +25
-  if (containsAny(text, PAYMENT_KEYWORDS)) {
-    signals.push({
-      id: 'upfront-payment',
-      label: 'Upfront payment demand',
-      severity: 'high',
-      weight: 25,
-      evidence: 'Message asks for registration fee, deposit, processing charge, or advance payment'
-    });
-    score += 25;
+  // Suppressed inside a verified safe context unless a strong scam signal is also present.
+  const paymentMatched = containsAny(text, PAYMENT_KEYWORDS);
+  if (paymentMatched && !seenSignalIds.has('upfront-payment')) {
+    const inSafeContext = hasSafeSignal && !containsAny(text, STRONG_SIGNALS);
+    if (!inSafeContext) {
+      signals.push({
+        id: 'upfront-payment',
+        label: 'Upfront payment demand',
+        severity: 'high',
+        weight: 25,
+        evidence: 'Message asks for registration fee, deposit, processing charge, or advance payment'
+      });
+      seenSignalIds.add('upfront-payment');
+      score += 25;
+    }
   }
 
-  // 3. Suspicious URL — +20 (don't double count related URL hits)
+  // 3. Suspicious URL — +20 (one URL signal only; don't double count related URL hits)
   const urls = findURLs(text);
   let suspiciousUrl = false;
   let urlEvidence = '';
@@ -131,10 +168,21 @@ export function analyzeRules(message) {
         isSuspicious = true;
         reason = 'URL shortener detected';
       }
-      // No HTTPS
+      // No HTTPS — but exempt official domains (.gov.in, .edu.in, .ac.in, .nic.in)
       else if (!u.startsWith('https://')) {
-        isSuspicious = true;
-        reason = 'No HTTPS';
+        const domain = u
+          .replace('https://', '')
+          .replace('http://', '')
+          .split('/')[0];
+        const isOfficial =
+          domain.endsWith('.gov.in') ||
+          domain.endsWith('.edu.in') ||
+          domain.endsWith('.ac.in') ||
+          domain.endsWith('.nic.in');
+        if (!isOfficial) {
+          isSuspicious = true;
+          reason = 'No HTTPS';
+        }
       }
       // Raw IP address
       else if (
@@ -178,7 +226,7 @@ export function analyzeRules(message) {
     }
   }
 
-  if (suspiciousUrl) {
+  if (suspiciousUrl && !seenSignalIds.has('suspicious-url')) {
     signals.push({
       id: 'suspicious-url',
       label: 'Suspicious URL',
@@ -186,6 +234,7 @@ export function analyzeRules(message) {
       weight: 20,
       evidence: urlEvidence || 'Suspicious link detected'
     });
+    seenSignalIds.add('suspicious-url');
     score += 20;
   }
 
@@ -193,7 +242,11 @@ export function analyzeRules(message) {
   const alreadyBrandLike = signals.some(
     (s) => s.id === 'suspicious-url' && brandLike
   );
-  if (containsAny(text, IMPERSONATION_KEYWORDS) && !alreadyBrandLike) {
+  if (
+    containsAny(text, IMPERSONATION_KEYWORDS) &&
+    !alreadyBrandLike &&
+    !seenSignalIds.has('impersonation')
+  ) {
     if (!hasSafeSignal || containsAny(text, STRONG_SIGNALS)) {
       signals.push({
         id: 'impersonation',
@@ -202,12 +255,13 @@ export function analyzeRules(message) {
         weight: 15,
         evidence: 'Message claims to be from a company, bank, government body, or courier service'
       });
+      seenSignalIds.add('impersonation');
       score += 15;
     }
   }
 
   // 5. Artificial urgency — +10
-  if (containsAny(text, URGENCY_KEYWORDS)) {
+  if (containsAny(text, URGENCY_KEYWORDS) && !seenSignalIds.has('urgency')) {
     signals.push({
       id: 'urgency',
       label: 'Artificial urgency',
@@ -215,11 +269,12 @@ export function analyzeRules(message) {
       weight: 10,
       evidence: 'Message uses time pressure (today only, last chance, account blocked, etc.)'
     });
+    seenSignalIds.add('urgency');
     score += 10;
   }
 
   // 6. Off-platform contact — +10
-  if (containsAny(text, OFFPLATFORM_KEYWORDS)) {
+  if (containsAny(text, OFFPLATFORM_KEYWORDS) && !seenSignalIds.has('off-platform')) {
     signals.push({
       id: 'off-platform',
       label: 'Off-platform contact',
@@ -227,21 +282,21 @@ export function analyzeRules(message) {
       weight: 10,
       evidence: 'Message pushes contact to Telegram, WhatsApp-only, or personal recruiter email'
     });
+    seenSignalIds.add('off-platform');
     score += 10;
   }
 
   const finalScore = Math.min(100, score);
-
-  let severity = 'safe';
-  if (finalScore >= 60) severity = 'critical';
-  else if (finalScore >= 40) severity = 'high';
-  else if (finalScore >= 20) severity = 'medium';
+  const verdict = scoreToVerdict(finalScore);
+  const severity = scoreToSeverity(finalScore);
 
   return {
     score: finalScore,
+    verdict,
     severity,
     signals,
     signalCount: signals.length,
-    hasSignals: signals.length > 0
+    hasSignals: signals.length > 0,
+    riskLabel: 'Risk indicator score — not a probability of fraud.'
   };
 }

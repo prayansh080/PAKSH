@@ -64,6 +64,12 @@ export default function App() {
     setLoading(false);
   };
 
+  const verdictConfig = {
+    'HIGH RISK': { color: 'text-danger', bg: 'bg-danger/10', border: 'border-danger/20', icon: AlertTriangle },
+    SUSPICIOUS: { color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', icon: AlertTriangle },
+    'LOW RISK': { color: 'text-safe', bg: 'bg-safe/10', border: 'border-safe/20', icon: CheckCircle2 }
+  };
+
   return (
     <div className="min-h-screen bg-navy-dark text-slate-100 px-4 sm:px-6 lg:px-8 py-6">
       {/* Header */}
@@ -160,6 +166,9 @@ export default function App() {
                 <div className="text-3xl font-bold text-white">
                   {report.riskScore}
                 </div>
+                <div className="text-[10px] text-slate-500 mt-1 uppercase tracking-wider">
+                  {report.riskLabel}
+                </div>
               </div>
               <div className="bg-slate-800/50 rounded-xl p-4">
                 <div className="text-xs text-muted uppercase tracking-wider">Confidence</div>
@@ -167,18 +176,18 @@ export default function App() {
                   {report.confidence}%
                 </div>
               </div>
-              <div className="bg-slate-800/50 rounded-xl p-4">
+              <div className={`bg-slate-800/50 rounded-xl p-4 ${
+                verdictConfig[report.verdict].bg
+              } ${verdictConfig[report.verdict].border}`}>
                 <div className="text-xs text-muted uppercase tracking-wider">Verdict</div>
-                <div className={`text-xl font-bold ${
-                  report.verdict === 'SCAM' ? 'text-danger' : 'text-safe'
-                }`}>
+                <div className={`text-xl font-bold ${verdictConfig[report.verdict].color}`}>
                   {report.verdict}
                 </div>
               </div>
               <div className="bg-slate-800/50 rounded-xl p-4">
                 <div className="text-xs text-muted uppercase tracking-wider">Source</div>
                 <div className="text-sm font-medium text-violet">
-                  {report.source === 'ai-merged' ? 'AI + Rules' : 'Rules only'}
+                  {report.source}
                 </div>
               </div>
             </div>
@@ -186,6 +195,14 @@ export default function App() {
             {report.aiReason && (
               <div className="mb-4 p-3 rounded-xl bg-violet/10 border border-violet/20 text-violet-200 text-sm">
                 {report.aiReason}
+              </div>
+            )}
+
+            {/* LOW RISK disclaimer */}
+            {report.verdict === 'LOW RISK' && (
+              <div className="mb-6 p-4 rounded-xl bg-safe/10 border border-safe/20 text-safe text-sm">
+                <CheckCircle2 className="w-4 h-4 mr-2" />
+                Low risk does not guarantee legitimacy. Always verify the sender independently.
               </div>
             )}
 
@@ -211,7 +228,7 @@ export default function App() {
               </div>
             ) : (
               <div className="mb-6 p-4 rounded-xl bg-safe/10 border border-safe/20 text-safe text-sm">
-                No suspicious signals detected. This looks safe.
+                No suspicious signals detected.
               </div>
             )}
 

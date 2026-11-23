@@ -1,7 +1,12 @@
 /**
- * Layer 3: Merge rules report with optional AI report.
- * Final risk = rules score, optionally adjusted by AI (clamped).
- * If Gemini fails/times out, returns rules-only report in same shape.
+ * Layer 3: Merge rules report with optional AI context.
+ *
+ * Design principle: the risk score is 100% rules-based and deterministic.
+ * AI output is used for context only (category, summary, dna, evidence, actions).
+ * AI never overrides or adjusts the rule-based score. This prevents unreliable
+ * AI classifications from creating misleading results.
+ *
+ * If Gemini fails or times out, returns rules-only report in the same shape.
  */
 
 const CATEGORY_RISK = {
@@ -15,48 +20,69 @@ const CATEGORY_RISK = {
   safe: 10
 };
 
+/**
+ * Maps a numeric score to a three-tier verdict.
+ * Thresholds are evidence-based:
+ *   HIGH RISK   >= 30  (strong evidence)
+ *   SUSPICIOUS  >= 20  (moderate evidence)
+ *   LOW RISK    < 20   (weak or no evidence — never a guarantee of safety)
+ */
+function scoreToVerdict(score) {
+  if (score >= 30) return 'HIGH RISK';
+  if (score >= 20) return 'SUSPICIOUS';
+  return 'LOW RISK';
+}
+
+function scoreToSeverity(score) {
+  if (score >= 30) return 'critical';
+  if (score >= 20) return 'high';
+  if (score > 0) return 'medium';
+  return 'safe';
+}
+
 export function mergeReport(rulesReport, aiReport = null) {
   const baseScore = rulesReport.score;
-  let finalScore = baseScore;
+
+  // Score is 100% rules-based. AI does not adjust it.
+  const finalScore = baseScore;
+  const verdict = scoreToVerdict(finalScore);
+  const severity = scoreToSeverity(finalScore);
+
+  // Confidence: rules-only is high when signals are present; higher when AI corroborates.
+  let confidence;
   let aiAdjusted = false;
   let aiReason = '';
   let source = 'rules';
 
-  if (aiReport && aiReport.category) {
-    const aiRisk = CATEGORY_RISK[aiReport.category] ?? 50;
-    const aiConfidence = aiReport.confidence ?? 50;
-    // AI can nudge score by up to 30 points, weighted by its confidence
-    const aiWeight = Math.min(30, (aiConfidence / 100) * 30);
-    finalScore = Math.min(
-      100,
-      Math.max(0, Math.round(baseScore * 0.7 + aiRisk * 0.3 + aiWeight * 0.1))
-    );
-    aiAdjusted = true;
-    aiReason = `AI context (${aiReport.category}): ${aiReport.summary || ''}`;
-    source = 'ai-merged';
+  if (rulesReport.hasSignals) {
+    confidence = 75;
+  } else {
+    confidence = 90;
   }
 
-  let severity = 'safe';
-  if (finalScore >= 60) severity = 'critical';
-  else if (finalScore >= 40) severity = 'high';
-  else if (finalScore >= 20) severity = 'medium';
+  if (aiReport && aiReport.category) {
+    // AI provides context only — never changes the score.
+    aiAdjusted = false;
+    source = 'rules + ai context';
+    aiReason = `AI category: ${aiReport.category}. ${aiReport.summary || ''}`;
 
-  const confidence = aiReport && aiReport.confidence !== undefined
-    ? Math.min(100, Math.max(40, aiReport.confidence))
-    : rulesReport.hasSignals
-      ? 75
-      : 90;
+    // If AI confidence is high and rules found nothing, modestly raise confidence.
+    if (!rulesReport.hasSignals && aiReport.confidence && aiReport.confidence > 80) {
+      confidence = Math.min(100, confidence + 10);
+    }
+  }
 
   return {
     riskScore: finalScore,
-    confidence,
+    verdict,
     severity,
-    verdict: finalScore >= 40 ? 'SCAM' : 'SAFE',
+    confidence,
     signals: rulesReport.signals,
     signalCount: rulesReport.signalCount,
     source,
     aiAdjusted,
     aiReason,
-    aiReport
+    aiReport,
+    riskLabel: 'Risk indicator score — not a probability of fraud.'
   };
 }
