@@ -28,13 +28,15 @@ export default async function handler(req, res) {
   const apiKey = process.env.GEMINI_API_KEY;
   const model = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
 
-  // If no API key, return a rules-compatible placeholder (silent fallback)
+  // If no API key, return an explicitly unavailable response (silent fallback)
   if (!apiKey) {
     return res.status(200).json({
+      available: false,
+      reason: 'not_configured',
       extractedText: message || '',
       category: 'other',
       confidence: 50,
-      summary: 'AI unavailable; rules-based analysis used.',
+      summary: 'AI context is not configured; rules-based analysis used.',
       dna: [],
       evidence: [],
       actions: []
@@ -96,7 +98,7 @@ export default async function handler(req, res) {
     : '';
 
   parts.push({
-    text: `You are TRUSTLENS, an explainable scam verifier for Indian students.
+    text: `You are PAKSH, an explainable scam verifier for Indian students.
 
 Analyze the following message${imageBase64 ? ' (screenshot attached)' : ''}.${rulesText}
 
@@ -148,8 +150,10 @@ ${JSON.stringify(schema, null, 2)}`
     try {
       parsed = JSON.parse(rawText);
     } catch (e) {
-      // If Gemini returns non-JSON, wrap it safely
+      // If Gemini returns non-JSON, fall back honestly.
       parsed = {
+        available: false,
+        reason: 'unparseable',
         extractedText: message || '',
         category: 'other',
         confidence: 40,
@@ -160,15 +164,20 @@ ${JSON.stringify(schema, null, 2)}`
       };
     }
 
-    return res.status(200).json(parsed);
+    return res.status(200).json({
+      available: true,
+      ...parsed
+    });
   } catch (err) {
     clearTimeout(timeout);
-    // Silent fallback: return rules-compatible shape
+    // Silent fallback: explicitly unavailable so the UI never claims AI context.
     return res.status(200).json({
+      available: false,
+      reason: err && err.name === 'AbortError' ? 'timeout' : 'provider_error',
       extractedText: message || '',
       category: 'other',
       confidence: 50,
-      summary: 'AI analysis timed out or failed.',
+      summary: 'AI context timed out or failed; rules-based analysis used.',
       dna: [],
       evidence: [],
       actions: []

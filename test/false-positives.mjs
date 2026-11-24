@@ -1,5 +1,5 @@
 /**
- * False-positive test suite for TRUSTLENS / PAKSH Phase 1 rules engine.
+ * False-positive test suite for PAKSH Phase 1 rules engine.
  *
  * Runs against src/lib/rules.js and verifies each test case produces the
  * expected verdict tier.

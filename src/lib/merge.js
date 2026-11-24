@@ -3,30 +3,15 @@
  *
  * Design principle: the risk score is 100% rules-based and deterministic.
  * AI output is used for context only (category, summary, dna, evidence, actions).
- * AI never overrides or adjusts the rule-based score. This prevents unreliable
- * AI classifications from creating misleading results.
+ * AI never overrides or adjusts the rule-based score.
  *
- * If Gemini fails or times out, returns rules-only report in the same shape.
+ * AI availability is explicit: the server sets `available: false` when no key
+ * is configured or the provider fails. The UI must never label a fallback as
+ * "AI context".
+ *
+ * If Gemini fails or times out, returns a rules-only report in the same shape.
  */
 
-const CATEGORY_RISK = {
-  fake_internship: 75,
-  kyc_phishing: 80,
-  courier_scam: 70,
-  scholarship_scam: 70,
-  upi_fraud: 85,
-  job_scam: 75,
-  other: 50,
-  safe: 10
-};
-
-/**
- * Maps a numeric score to a three-tier verdict.
- * Thresholds are evidence-based:
- *   HIGH RISK   >= 30  (strong evidence)
- *   SUSPICIOUS  >= 20  (moderate evidence)
- *   LOW RISK    < 20   (weak or no evidence — never a guarantee of safety)
- */
 function scoreToVerdict(score) {
   if (score >= 30) return 'HIGH RISK';
   if (score >= 20) return 'SUSPICIOUS';
@@ -40,49 +25,78 @@ function scoreToSeverity(score) {
   return 'safe';
 }
 
-export function mergeReport(rulesReport, aiReport = null) {
-  const baseScore = rulesReport.score;
+function aiAvailability(aiReport) {
+  if (!aiReport || typeof aiReport !== 'object') {
+    return { available: false, reason: 'not_called' };
+  }
+  if (aiReport.available === false) {
+    return { available: false, reason: aiReport.reason || 'unavailable' };
+  }
+  if (typeof aiReport.category !== 'string') {
+    return { available: false, reason: 'invalid_response' };
+  }
+  return { available: true, reason: null };
+}
 
-  // Score is 100% rules-based. AI does not adjust it.
-  const finalScore = baseScore;
+function emptyReport(messageText) {
+  return {
+    riskScore: 0,
+    verdict: 'LOW RISK',
+    severity: 'safe',
+    confidence: 90,
+    signals: [],
+    signalCount: 0,
+    source: 'rules',
+    aiAdjusted: false,
+    aiAvailable: false,
+    aiReason: '',
+    aiCategory: null,
+    aiNote: 'No analysable message content.',
+    aiReport: null,
+    riskLabel: 'Risk indicator score — not a probability of fraud.',
+    originalMessage: messageText || '',
+    analyzedAt: new Date().toISOString()
+  };
+}
+
+export function mergeReport(rulesReport, aiReport = null, messageText = '') {
+  if (!rulesReport || typeof rulesReport.score !== 'number') {
+    return emptyReport(messageText);
+  }
+
+  const finalScore = rulesReport.score;
   const verdict = scoreToVerdict(finalScore);
   const severity = scoreToSeverity(finalScore);
+  const confidence = rulesReport.hasSignals ? 75 : 90;
+  const availability = aiAvailability(aiReport);
+  const source = availability.available ? 'rules + ai context' : 'rules';
 
-  // Confidence: rules-only is high when signals are present; higher when AI corroborates.
-  let confidence;
-  let aiAdjusted = false;
-  let aiReason = '';
-  let source = 'rules';
-
-  if (rulesReport.hasSignals) {
-    confidence = 75;
-  } else {
-    confidence = 90;
-  }
-
-  if (aiReport && aiReport.category) {
-    // AI provides context only — never changes the score.
-    aiAdjusted = false;
-    source = 'rules + ai context';
-    aiReason = `AI category: ${aiReport.category}. ${aiReport.summary || ''}`;
-
-    // If AI confidence is high and rules found nothing, modestly raise confidence.
-    if (!rulesReport.hasSignals && aiReport.confidence && aiReport.confidence > 80) {
-      confidence = Math.min(100, confidence + 10);
-    }
-  }
+  const aiNote = availability.available
+    ? ''
+    : availability.reason === 'not_configured'
+      ? 'AI context is not configured on the server. Rules-only analysis used.'
+      : availability.reason === 'timeout'
+        ? 'AI context timed out. Rules-only analysis used.'
+        : availability.reason === 'not_called'
+          ? 'AI context was not requested. Rules-only analysis used.'
+          : 'AI context was unavailable. Rules-only analysis used.';
 
   return {
     riskScore: finalScore,
     verdict,
     severity,
     confidence,
-    signals: rulesReport.signals,
-    signalCount: rulesReport.signalCount,
+    signals: Array.isArray(rulesReport.signals) ? rulesReport.signals : [],
+    signalCount: rulesReport.signalCount || (rulesReport.signals || []).length,
     source,
-    aiAdjusted,
-    aiReason,
-    aiReport,
-    riskLabel: 'Risk indicator score — not a probability of fraud.'
+    aiAdjusted: false,
+    aiAvailable: availability.available,
+    aiReason: availability.available ? aiReport.summary || '' : '',
+    aiCategory: availability.available ? aiReport.category : null,
+    aiNote,
+    aiReport: availability.available ? aiReport : null,
+    riskLabel: 'Risk indicator score — not a probability of fraud.',
+    originalMessage: typeof messageText === 'string' ? messageText : '',
+    analyzedAt: new Date().toISOString()
   };
 }

@@ -1,33 +1,659 @@
+/* Tailwind directives */
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
+/* ---------------------------------------------------------------------------
+   Design tokens
+   Dark is the PAKSH default. Every Tailwind colour in tailwind.config.js maps
+   to one of these variables, so switching data-theme restyles the whole app
+   (backgrounds, text, cards, borders, forms, graph, dialogs) at once.
+--------------------------------------------------------------------------- */
+:root,
+:root[data-theme='dark'] {
+  /* Surfaces */
+  --c-bg: 5 7 13;
+  --c-bg-2: 8 13 23;
+  --c-navy: 11 18 32;
+  --c-surface: 10 16 29;
+  --c-surface-2: 14 22 38;
+  --c-surface-3: 18 29 49;
+
+  /* Foreground scale */
+  --c-fg: 230 237 247;
+  --c-slate-100: 241 245 249;
+  --c-slate-200: 226 232 240;
+  --c-slate-300: 203 213 225;
+  --c-slate-400: 148 163 184;
+  --c-slate-500: 100 116 139;
+  --c-muted: 139 155 180;
+  --c-faint: 91 107 130;
+
+  /* Lines */
+  --c-line: 148 163 184;
+  --line-alpha: 0.14;
+  --line-alpha-strong: 0.24;
+  --c-grid: 148 163 184;
+
+  /* Accents (RGB triplets for Tailwind alpha modifiers) */
+  --c-cyan: 34 211 238;
+  --c-cyan-dim: 14 116 144;
+  --c-electric: 59 130 246;
+  --c-violet: 139 92 246;
+  --c-violet-dim: 76 29 149;
+  --c-danger: 244 63 94;
+  --c-danger-dim: 127 29 29;
+  --c-safe: 52 211 153;
+  --c-safe-dim: 20 83 45;
+  --c-amber: 245 158 11;
+
+  /* Accents as ready-to-use colours for canvas / SVG */
+  --a-cyan: #22d3ee;
+  --a-electric: #3b82f6;
+  --a-violet: #8b5cf6;
+  --a-danger: #f43f5e;
+  --a-safe: #34d399;
+  --a-amber: #f59e0b;
+  --a-muted: #94a3b8;
+
+  /* Surfaces used by hand-written SVG */
+  --graph-node-bg: #0a1119;
+  --graph-edge: #334155;
+  --graph-edge-strong: #64748b;
+  --graph-label: #94a3b8;
+  --graph-label-active: #e2e8f0;
+  --graph-stage-label: #64748b;
+
+  /* Elevation */
+  --shadow-panel: 0 24px 70px -32px rgba(0, 0, 0, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-panel-soft: 0 18px 50px -30px rgba(0, 0, 0, 0.85);
+  --shadow-card: 0 18px 36px -28px rgba(34, 211, 238, 0.55);
+
+  /* Controls */
+  --btn-bg: #22d3ee;
+  --btn-bg-hover: #3fe0f6;
+  --btn-fg: #05070d;
+  --btn-shadow: 0 14px 34px -18px rgba(34, 211, 238, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.25);
+  --btn-shadow-hover: 0 16px 40px -16px rgba(34, 211, 238, 0.9), inset 0 1px 0 rgba(255, 255, 255, 0.3);
+  --input-bg: rgba(5, 7, 13, 0.6);
+  --panel-bg: rgba(11, 18, 32, 0.72);
+  --panel-bg-soft: rgba(255, 255, 255, 0.02);
+
+  /* Page wash */
+  --body-bg:
+    radial-gradient(1000px 560px at 12% -12%, rgba(34, 211, 238, 0.1), transparent 62%),
+    radial-gradient(900px 520px at 92% -6%, rgba(139, 92, 246, 0.1), transparent 60%),
+    radial-gradient(800px 600px at 50% 120%, rgba(59, 130, 246, 0.06), transparent 65%);
+  --scrollbar-track: #05070d;
+  --scrollbar-thumb: #1e2b42;
+  --scrollbar-thumb-hover: #2a3b58;
+}
+
+:root[data-theme='light'] {
+  /* Surfaces */
+  --c-bg: 246 248 251;
+  --c-bg-2: 238 242 247;
+  --c-navy: 255 255 255;
+  --c-surface: 255 255 255;
+  --c-surface-2: 244 247 251;
+  --c-surface-3: 236 241 247;
+
+  /* Foreground scale — near-black on paper, still a full contrast ramp */
+  --c-fg: 12 20 34;
+  --c-slate-100: 15 23 42;
+  --c-slate-200: 26 36 51;
+  --c-slate-300: 45 58 77;
+  --c-slate-400: 71 85 105;
+  --c-slate-500: 100 116 139;
+  --c-muted: 82 98 122;
+  --c-faint: 100 116 139;
+
+  /* Lines */
+  --c-line: 15 23 42;
+  --line-alpha: 0.12;
+  --line-alpha-strong: 0.2;
+  --c-grid: 15 23 42;
+
+  /* Accents darkened for legible contrast on white */
+  --c-cyan: 14 116 144;
+  --c-cyan-dim: 21 94 117;
+  --c-electric: 37 99 235;
+  --c-violet: 109 40 217;
+  --c-violet-dim: 91 33 182;
+  --c-danger: 225 29 72;
+  --c-danger-dim: 159 18 57;
+  --c-safe: 5 150 105;
+  --c-safe-dim: 4 120 87;
+  --c-amber: 180 83 9;
+
+  --a-cyan: #0891b2;
+  --a-electric: #2563eb;
+  --a-violet: #7c3aed;
+  --a-danger: #e11d48;
+  --a-safe: #059669;
+  --a-amber: #b45309;
+  --a-muted: #64748b;
+
+  --graph-node-bg: #ffffff;
+  --graph-edge: #cbd5e1;
+  --graph-edge-strong: #64748b;
+  --graph-label: #475569;
+  --graph-label-active: #0f172a;
+  --graph-stage-label: #64748b;
+
+  --shadow-panel: 0 22px 55px -34px rgba(15, 23, 42, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-panel-soft: 0 16px 40px -32px rgba(15, 23, 42, 0.3);
+  --shadow-card: 0 18px 34px -30px rgba(14, 116, 144, 0.55);
+
+  --btn-bg: #0e7490;
+  --btn-bg-hover: #155e75;
+  --btn-fg: #ffffff;
+  --btn-shadow: 0 12px 28px -18px rgba(14, 116, 144, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  --btn-shadow-hover: 0 14px 32px -16px rgba(14, 116, 144, 0.75), inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  --input-bg: #ffffff;
+  --panel-bg: rgba(255, 255, 255, 0.88);
+  --panel-bg-soft: rgba(255, 255, 255, 0.66);
+
+  --body-bg:
+    radial-gradient(900px 520px at 10% -14%, rgba(14, 116, 144, 0.09), transparent 62%),
+    radial-gradient(820px 480px at 92% -8%, rgba(109, 40, 217, 0.07), transparent 60%),
+    radial-gradient(760px 560px at 50% 118%, rgba(37, 99, 235, 0.05), transparent 65%);
+  --scrollbar-track: #eef2f7;
+  --scrollbar-thumb: #c3cddb;
+  --scrollbar-thumb-hover: #a7b4c6;
+}
+
+/* Base resets */
+html {
+  scroll-padding-top: 88px;
+}
+
+body {
+  @apply bg-ink text-slate-100 antialiased;
+  min-height: 100vh;
+  background-color: rgb(var(--c-bg));
+  background-image: var(--body-bg);
+  background-attachment: fixed;
+}
+
+@media (prefers-reduced-motion: no-preference) {
   html {
     scroll-behavior: smooth;
   }
-  body {
-    @apply bg-navy-dark text-slate-100 antialiased selection:bg-cyan selection:text-navy-dark;
-    min-height: 100vh;
-  }
 }
 
-@layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
+::selection {
+  background: rgb(var(--c-cyan) / 0.25);
+  color: rgb(var(--c-fg));
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--c-cyan) / 0.7);
+  outline-offset: 2px;
 }
 
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 10px;
+  height: 10px;
 }
 ::-webkit-scrollbar-track {
-  background: #020617;
+  background: var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 4px;
+  background: var(--scrollbar-thumb);
+  border-radius: 999px;
+  border: 2px solid var(--scrollbar-track);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+  background: var(--scrollbar-thumb-hover);
+}
+
+/* ---------------------------------------------------------------------------
+   Keyframes
+   Declared globally: components reference them through arbitrary animation
+   utilities (animate-[fade-up_...]) and through the classes below.
+--------------------------------------------------------------------------- */
+@keyframes fade-up {
+  0% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  0% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-out {
+  0% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes spin-slow {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Evidence graph: dashes travel along a live connection. */
+@keyframes dash-flow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+/* Evidence graph: the traced path pulses without moving layout. */
+@keyframes trace-pulse {
+  0%,
+  100% {
+    opacity: 0.55;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+/* Hero backdrop: the signal grid drifts one cell at a time. */
+@keyframes grid-drift {
+  from {
+    background-position: 0 0, 0 0;
+  }
+  to {
+    background-position: 48px 48px, 48px 48px;
+  }
+}
+
+/* Hero: a light sweep crosses the panel like a scanner pass. */
+@keyframes hero-sweep {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(320%);
+  }
+}
+
+/* Intro: progress rail fills over the real intro duration. */
+@keyframes intro-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Intro: the mark breathes while the sequence runs. */
+@keyframes mark-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: drop-shadow(0 0 18px rgba(34, 211, 238, 0.25));
+  }
+  50% {
+    transform: scale(1.035);
+    filter: drop-shadow(0 0 30px rgba(34, 211, 238, 0.45));
+  }
+}
+
+/* Verdict: the score ring settles with a short overshoot. */
+@keyframes verdict-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.015);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.edge-flow {
+  animation: dash-flow 1.1s linear infinite;
+}
+
+.trace-path {
+  animation: trace-pulse 1.6s ease-in-out infinite;
+}
+
+/* Scroll reveal ------------------------------------------------------------ */
+.reveal {
+  opacity: 0;
+  transform: translateY(16px);
+  transition: opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
+    transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: opacity, transform;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: none;
+}
+
+/* Staggered hero copy ------------------------------------------------------ */
+.hero-line {
+  opacity: 0;
+  animation: fade-up 620ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.hero-line-1 {
+  animation-delay: 60ms;
+}
+.hero-line-2 {
+  animation-delay: 150ms;
+}
+.hero-line-3 {
+  animation-delay: 240ms;
+}
+.hero-line-4 {
+  animation-delay: 330ms;
+}
+.hero-line-5 {
+  animation-delay: 420ms;
+}
+
+/* Animated hero backdrop --------------------------------------------------- */
+.hero-grid {
+  background-image:
+    linear-gradient(to right, rgb(var(--c-grid) / 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgb(var(--c-grid) / 0.08) 1px, transparent 1px);
+  background-size: 48px 48px;
+  -webkit-mask-image: radial-gradient(ellipse at center, #000 10%, transparent 78%);
+  mask-image: radial-gradient(ellipse at center, #000 10%, transparent 78%);
+  animation: grid-drift 12s linear infinite;
+}
+
+.hero-sweep {
+  animation: hero-sweep 7s ease-in-out infinite;
+}
+
+.verdict-pop {
+  animation: verdict-pop 520ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+/* ---------------------------------------------------------------------------
+   Design system — the shared surface, control and typography classes used by
+   every page. These live here so all pages stay visually consistent.
+--------------------------------------------------------------------------- */
+@layer components {
+  /* Surfaces ------------------------------------------------------------- */
+  .panel {
+    @apply rounded-2xl border border-line shadow-panel backdrop-blur-sm;
+    background-color: var(--panel-bg);
+  }
+
+  .panel-soft {
+    @apply rounded-2xl border border-line shadow-panel-soft backdrop-blur-sm;
+    background-color: var(--panel-bg-soft);
+  }
+
+  .card-glass {
+    @apply rounded-xl border border-line bg-white/[0.02] p-4 transition-all duration-200;
+  }
+
+  .card-glass:hover {
+    @apply -translate-y-0.5 border-line-strong bg-white/[0.04];
+    box-shadow: var(--shadow-card);
+  }
+
+  /* Buttons -------------------------------------------------------------- */
+  .btn-primary,
+  .btn-ghost {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium leading-none transition-all duration-150;
+    white-space: nowrap;
+  }
+
+  .btn-primary {
+    @apply font-semibold;
+    background-color: var(--btn-bg);
+    color: var(--btn-fg);
+    box-shadow: var(--btn-shadow);
+  }
+
+  .btn-primary:hover {
+    background-color: var(--btn-bg-hover);
+    box-shadow: var(--btn-shadow-hover);
+    transform: translateY(-1px);
+  }
+
+  .btn-primary:active {
+    transform: translateY(1px);
+    box-shadow: var(--btn-shadow);
+  }
+
+  .btn-ghost {
+    @apply border border-line bg-white/[0.03] text-slate-200;
+  }
+
+  .btn-ghost:hover {
+    @apply border-line-strong bg-white/[0.07] text-white;
+  }
+
+  .btn-ghost:active {
+    transform: translateY(1px);
+  }
+
+  .btn-danger {
+    @apply inline-flex select-none items-center justify-center gap-2 rounded-xl border border-danger/30 bg-danger/[0.08] px-4 py-2.5 text-sm font-medium leading-none text-danger transition-colors;
+    white-space: nowrap;
+  }
+
+  .btn-danger:hover {
+    @apply border-danger/50 bg-danger/[0.14];
+  }
+
+  .btn-primary:disabled,
+  .btn-ghost:disabled,
+  .btn-danger:disabled {
+    @apply cursor-not-allowed opacity-40;
+    box-shadow: none;
+    transform: none;
+  }
+
+  .icon-btn {
+    @apply inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-line bg-white/[0.03] text-slate-300 transition-all duration-150;
+  }
+
+  .icon-btn:hover {
+    @apply border-cyan/40 text-cyan;
+  }
+
+  .icon-btn:active {
+    transform: scale(0.95);
+  }
+
+  .icon-btn svg {
+    @apply h-4 w-4;
+  }
+
+  /* Theme toggle --------------------------------------------------------- */
+  .theme-toggle__icon {
+    display: inline-flex;
+    transition: transform 320ms cubic-bezier(0.22, 1, 0.36, 1);
+  }
+
+  .theme-toggle:hover .theme-toggle__icon {
+    transform: rotate(28deg);
+  }
+
+  /* Segmented control (graph views, density) ----------------------------- */
+  .seg {
+    @apply inline-flex rounded-xl border border-line bg-white/[0.02] p-0.5;
+  }
+
+  .seg-btn {
+    @apply rounded-[10px] border border-transparent px-2.5 py-1.5 text-[11px] font-medium text-slate-400 transition-colors;
+  }
+
+  .seg-btn:hover {
+    @apply text-white;
+  }
+
+  .seg-btn[aria-pressed='true'] {
+    @apply border-cyan/25 bg-cyan/10 text-cyan;
+  }
+
+  .tool-btn {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-lg border border-line bg-white/[0.03] text-slate-300 transition-colors;
+  }
+
+  .tool-btn:hover:not(:disabled) {
+    @apply border-cyan/40 text-cyan;
+  }
+
+  .tool-btn:disabled {
+    @apply cursor-not-allowed opacity-40;
+  }
+
+  /* Form controls -------------------------------------------------------- */
+  .input-field {
+    @apply block w-full rounded-xl border border-line px-4 py-3 text-sm text-slate-100 placeholder:text-faint transition-colors;
+    background-color: var(--input-bg);
+  }
+
+  .input-field:hover:not(:disabled) {
+    @apply border-line-strong;
+  }
+
+  .input-field:focus {
+    @apply border-cyan/50 outline-none;
+    box-shadow: 0 0 0 3px rgb(var(--c-cyan) / 0.16);
+  }
+
+  .input-field:disabled {
+    @apply cursor-not-allowed opacity-60;
+  }
+
+  .input-field[aria-invalid='true'] {
+    @apply border-danger/50;
+  }
+
+  .input-field[aria-invalid='true']:focus {
+    box-shadow: 0 0 0 3px rgb(var(--c-danger) / 0.16);
+  }
+
+  textarea.input-field {
+    min-height: 180px;
+    line-height: 1.7;
+    resize: vertical;
+    font-family: inherit;
+  }
+
+  .select-field {
+    @apply rounded-xl border border-line px-3 py-2 text-xs text-slate-200 transition-colors;
+    background-color: var(--input-bg);
+  }
+
+  .select-field:focus {
+    @apply border-cyan/50 outline-none;
+    box-shadow: 0 0 0 3px rgb(var(--c-cyan) / 0.16);
+  }
+
+  .select-field option {
+    background-color: rgb(var(--c-navy));
+    color: rgb(var(--c-fg));
+  }
+
+  /* Pills and labels ----------------------------------------------------- */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-line bg-white/[0.04] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-slate-300;
+  }
+
+  .chip-cyan {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-cyan/25 bg-cyan/[0.08] px-2.5 py-1 font-mono text-[10px] uppercase tracking-[0.14em] text-cyan;
+  }
+
+  .eyebrow {
+    @apply font-mono text-[10px] uppercase tracking-[0.22em] text-faint;
+  }
+
+  .eyebrow-cyan {
+    @apply font-mono text-[10px] uppercase tracking-[0.22em] text-cyan;
+  }
+
+  .label {
+    @apply font-mono text-[10px] uppercase tracking-[0.18em] text-muted;
+  }
+
+  /* Text treatment ------------------------------------------------------- */
+  .text-gradient {
+    @apply bg-gradient-to-r from-cyan via-electric to-violet bg-clip-text text-transparent;
+  }
+
+  /* Decorative ----------------------------------------------------------- */
+  .grid-overlay {
+    background-image:
+      linear-gradient(to right, rgb(var(--c-grid) / 0.07) 1px, transparent 1px),
+      linear-gradient(to bottom, rgb(var(--c-grid) / 0.07) 1px, transparent 1px);
+    background-size: 48px 48px;
+    -webkit-mask-image: radial-gradient(ellipse at center, #000 0%, transparent 78%);
+    mask-image: radial-gradient(ellipse at center, #000 0%, transparent 78%);
+  }
+
+  /* Page transition ------------------------------------------------------ */
+  .page-content {
+    animation: fade-up 0.4s ease-out both;
+  }
+
+  /* Graph canvas --------------------------------------------------------- */
+  .graph-surface {
+    background-color: rgb(var(--c-surface-2) / 0.5);
+    background-image:
+      radial-gradient(circle at 50% 40%, rgb(var(--c-cyan) / 0.06), transparent 62%);
+  }
+}
+
+/* Reduced motion ---------------------------------------------------------- */
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+  .page-content {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+  .reveal,
+  .hero-line {
+    opacity: 1 !important;
+    transform: none !important;
+    animation: none !important;
+  }
+  .edge-flow,
+  .trace-path,
+  .hero-grid,
+  .hero-sweep {
+    animation: none !important;
+  }
+  .card-glass:hover {
+    transform: none;
+  }
 }

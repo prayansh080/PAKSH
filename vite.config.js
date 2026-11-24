@@ -4,9 +4,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   server: {
-    port: 5173,
-    // In local dev, /api/analyze won't exist unless you run `vercel dev`.
-    // The app gracefully falls back to rules-only if the API is unreachable.
+    port: process.env.PORT || 5173,
   },
   build: {
     outDir: 'dist',

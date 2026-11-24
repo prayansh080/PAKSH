@@ -1,5 +1,5 @@
 /**
- * Sample chips and demo test cases for TRUSTLENS / PAKSH.
+ * Sample chips and demo test cases for PAKSH.
  *
  * Verdict tiers: HIGH RISK | SUSPICIOUS | LOW RISK
  *   HIGH RISK   >= 30  (strong evidence: credential theft, upfront payment, multiple signals)
@@ -11,22 +11,32 @@ export const SAMPLE_CHIPS = [
   {
     id: 'internship',
     label: 'Fake Internship',
+    tone: 'scam',
     text: 'Selected for internship. Pay ₹1,499 today to confirm your position. Contact HR on Telegram.'
   },
   {
     id: 'kyc',
-    label: 'KYC SMS',
+    label: 'KYC Phishing',
+    tone: 'scam',
     text: 'Your account will be blocked. Update KYC immediately through this link: http://bit.ly/verify-kyc'
+  },
+  {
+    id: 'otp',
+    label: 'OTP Theft',
+    tone: 'scam',
+    text: 'Share your OTP to verify your bank account or it will be blocked within 24 hours.'
   },
   {
     id: 'courier',
     label: 'Courier/Customs',
+    tone: 'scam',
     text: 'Your parcel is stuck at customs. Pay ₹500 clearance fee to release it. Contact on WhatsApp only.'
   },
   {
-    id: 'scholarship',
-    label: 'Scholarship',
-    text: 'Congratulations! You won a scholarship. Pay processing fee of ₹2,000 to claim. Email hr@gmail.com now.'
+    id: 'safe',
+    label: 'Safe Notice',
+    tone: 'safe',
+    text: 'Notice: The annual college fest will be held on 12 March in the main campus auditorium. All students are welcome. Details on the notice board.'
   }
 ];
 

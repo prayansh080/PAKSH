@@ -2,10 +2,58 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/paksh.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="Explainable scam, phishing and fake-offer verifier for Indian students" />
-    <title>TRUSTLENS — Don't Just Detect Scams. Reveal the Deception.</title>
+    <meta name="theme-color" content="#05070d" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <meta
+      name="description"
+      content="PAKSH — Digital Deception Intelligence. See the other side of suspicious messages, fake offers, phishing links, and scams. Evidence-first, local rules engine, explainable risk."
+    />
+    <meta property="og:title" content="PAKSH — See the other side." />
+    <meta
+      property="og:description"
+      content="Explainable deception intelligence for Indian students. Message → signals → risk → evidence → scam pattern → safety action."
+    />
+    <meta property="og:type" content="website" />
+    <title>PAKSH — See the other side.</title>
+
+    <!--
+      Theme is resolved before first paint: a stored choice wins, otherwise the
+      system preference decides. Without this the dark-first stylesheet would
+      flash for light-mode visitors.
+    -->
+    <script>
+      (function () {
+        var theme = 'dark';
+        try {
+          var stored = window.localStorage.getItem('paksh-theme');
+          if (stored === 'light' || stored === 'dark') {
+            theme = stored;
+          } else if (window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches) {
+            theme = 'light';
+          }
+        } catch (error) {
+          theme = 'dark';
+        }
+        document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.style.colorScheme = theme;
+      })();
+    </script>
+    <style>
+      /* Paint the correct background before the JS bundle and CSS load. */
+      html {
+        background-color: #05070d;
+      }
+      html[data-theme='light'] {
+        background-color: #f6f8fb;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>

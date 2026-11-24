@@ -1,5 +1,15 @@
 {
   "version": 2,
-  "builds": [{ "src": "api/analyze.js", "use": "@vercel/node" }],
-  "routes": [{ "src": "/api/(.*)", "dest": "/api/analyze.js" }]
+  "builds": [
+    { "src": "api/analyze.js", "use": "@vercel/node" },
+    { "src": "api/url-check.js", "use": "@vercel/node" },
+    { "src": "dist/index.html", "use": "@vercel/static" }
+  ],
+  "routes": [
+    { "src": "/api/analyze", "dest": "/api/analyze.js" },
+    { "src": "/api/url-check", "dest": "/api/url-check.js" },
+    { "src": "/api/(.*)", "dest": "/api/analyze.js" },
+    { "src": "(.*)", "dest": "/dist/index.html" }
+  ],
+  "framework": "vite"
 }
